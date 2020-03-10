@@ -162,7 +162,11 @@ let read_ecd_zip64 filename filelen ic : zip_format =
   let _disk_entries = read8 ic in
   let cd_entries = read8 ic in
   let cd_size = read8 ic in
-  let cd_offset = read8 ic in
+  (*let cd_offset = read8 ic in*) (* Problem: the Int32 conversion in read8 can overflow. Use string read instead. *)
+  let cd_offset_string = readstring ic 8 in
+  let byte_string = ref "" in
+  String.iter (fun char -> byte_string := (Format.sprintf "%x" @@ Char.code char)^(!byte_string)) cd_offset_string;
+  let cd_offset = Int64.of_string ("0x"^(!byte_string)) in
   if debug then Format.printf "ZIP64 metadata:@.";
   if debug then Format.printf "\tecd_record_size: %s@." @@ Int64.to_string ecd_record_size;
   if debug then Format.printf "\tversion_made_by: %s@." @@ Int.to_string version_made_by;
