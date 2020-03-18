@@ -34,15 +34,18 @@ let read4_int ic =
   let lw = read2 ic in let hw = read2 ic in
   if hw > max_int lsr 16 then raise (Error("", "", "32-bit data too large"));
   lw lor (hw lsl 16)
-let read8 ic =
-  let ldw = read4 ic in let hdw = read4 ic in
-  Int64.logor (Int64.of_int32 ldw) (Int64.shift_left (Int64.of_int32 hdw) 32)
 let read8_int ic =
   let ldw = read4_int ic in let hdw = read4_int ic in
   ldw lor (hdw lsl 32) (* let read4_int take care of the trouble *)
 let readstring ic n =
   let s = Bytes.create n in
   really_input ic s 0 n; Bytes.unsafe_to_string s
+
+let read8_string ic =
+  let value = readstring ic 8 in
+  let byte_string = ref "" in
+  String.iter (fun char -> byte_string := (Format.sprintf "%02x" @@ Char.code char)^(!byte_string)) value;
+  Int64.of_string ("0x"^(!byte_string))
 
 let write1 = output_byte
 let write2 oc n =
@@ -153,19 +156,18 @@ let read_ecd_zip64 filename filelen ic : zip_format =
   LargeFile.seek_in ic offset;
   let magic = read4 ic in
   assert (magic = Int32.of_int 0x06064b50);
-  let ecd_record_size = read8 ic in
+  let ecd_record_size = read8_string ic in
   let version_made_by = read2 ic in
   let version_needed = read2 ic in
   let disk_no = read4 ic in
   let cd_disk_no = read4 ic in
-  let _disk_entries = read8 ic in
-  let cd_entries = read8 ic in
-  let cd_size = read8 ic in
-  (*let cd_offset = read8 ic in*) (* Problem: the Int32 conversion in read8 can overflow. Use string read instead. *)
-  let cd_offset_string = readstring ic 8 in
-  let byte_string = ref "" in
-  String.iter (fun char -> byte_string := (Format.sprintf "%x" @@ Char.code char)^(!byte_string)) cd_offset_string;
-  let cd_offset = Int64.of_string ("0x"^(!byte_string)) in
+  let _disk_entries = read8_string ic in
+  if debug then Format.printf "Reading cd entries@.";
+  let cd_entries = read8_string ic in
+  if debug then Format.printf "Done Reading cd entries@.";
+  let cd_size = read8_string ic in
+  (*let cd_offset = read8 ic in*) (* Problem: the Int32 conversion in read8 can overflow. Use string read throughout. *)
+  let cd_offset = read8_string ic in
   if debug then Format.printf "ZIP64 metadata:@.";
   if debug then Format.printf "\tecd_record_size: %s@." @@ Int64.to_string ecd_record_size;
   if debug then Format.printf "\tversion_made_by: %s@." @@ Int.to_string version_made_by;
