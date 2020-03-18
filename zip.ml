@@ -162,9 +162,7 @@ let read_ecd_zip64 filename filelen ic : zip_format =
   let disk_no = read4 ic in
   let cd_disk_no = read4 ic in
   let _disk_entries = read8_string ic in
-  if debug then Format.printf "Reading cd entries@.";
   let cd_entries = read8_string ic in
-  if debug then Format.printf "Done Reading cd entries@.";
   let cd_size = read8_string ic in
   (*let cd_offset = read8 ic in*) (* Problem: the Int32 conversion in read8 can overflow. Use string read throughout. *)
   let cd_offset = read8_string ic in
