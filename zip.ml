@@ -133,8 +133,7 @@ let read_ecd_zip64 filename filelen ic : zip_format =
   let buf = Bytes.create 256 in
   let rec find_ecd_zip64 pos len =
     if pos <= 0L || Int64.sub filelen pos >= 0x100000000L then
-      raise (Error(filename, "",
-                   "end of central directory not found, not a ZIP64 file"));
+      raise (Error("", "", "end of central directory not found, not a ZIP64 file"));
     let toread = if pos >= 128L then 128 else Int64.to_int pos in
     (* Make room for "toread" extra bytes, and read them *)
     Bytes.blit buf 0 buf toread (256 - toread);
@@ -220,7 +219,7 @@ let read_ecd filename ic =
     let comment_len = read2 ic in
     let comment = readstring ic comment_len in
     assert (magic = Int32.of_int 0x06054b50);
-    if disk_no <> 0 || cd_disk_no <> 0 then raise (Error(filename, "", "multi-disk ZIP files not supported"));
+    if disk_no <> 0 || cd_disk_no <> 0 then raise (Error("", "", "multi-disk ZIP files not supported"));
     if cd_entries = 0xFFFF then
       read_ecd_zip64 filename filelen ic
     else
@@ -262,10 +261,9 @@ let read_cd_zip64 filename ic cd_entries cd_offset cd_bound =
       let extra = readstring ic extra_len in
       let comment = readstring ic comment_len in
       if magic <> Int32.of_int 0x02014b50 then
-        raise (Error(filename, name,
-                     "wrong file header in central directory"));
+        raise (Error("", "", "wrong file header in central directory"));
       if flags land 1 <> 0 then
-        raise (Error(filename, name, "encrypted entries not supported"));
+        raise (Error("", "", "encrypted entries not supported"));
 
       e := { filename = name;
              extra = extra;
@@ -273,8 +271,7 @@ let read_cd_zip64 filename ic cd_entries cd_offset cd_bound =
              methd = (match methd with
                    0 -> Stored
                  | 8 -> Deflated
-                 | _ -> raise (Error(filename, name,
-                                     "unknown compression method")));
+                 | _ -> raise (Error("", "", "unknown compression method")));
              mtime = unixtime_of_dostime lastmod_time lastmod_date;
              crc = crc;
              uncompressed_size = uncompr_size;
@@ -287,7 +284,7 @@ let read_cd_zip64 filename ic cd_entries cd_offset cd_bound =
     assert (cd_entries <= 0x100000000L);
     List.rev !e
   with End_of_file ->
-    raise (Error(filename, "", "end-of-file while reading central directory"))
+    raise (Error("", "", "end-of-file while reading central directory"))
 
 let read_cd filename ic cd_entries cd_offset cd_bound =
   let cd_bound = int64_of_uint32 cd_bound in
@@ -318,10 +315,9 @@ let read_cd filename ic cd_entries cd_offset cd_bound =
       let extra = readstring ic extra_len in
       let comment = readstring ic comment_len in
       if magic <> Int32.of_int 0x02014b50 then
-        raise (Error(filename, name,
-                     "wrong file header in central directory"));
+        raise (Error("", "", "wrong file header in central directory"));
       if flags land 1 <> 0 then
-        raise (Error(filename, name, "encrypted entries not supported"));
+        raise (Error("", "", "encrypted entries not supported"));
 
       e := { filename = name;
              extra = extra;
@@ -329,8 +325,7 @@ let read_cd filename ic cd_entries cd_offset cd_bound =
              methd = (match methd with
                    0 -> Stored
                  | 8 -> Deflated
-                 | _ -> raise (Error(filename, name,
-                                     "unknown compression method")));
+                 | _ -> raise (Error("", "", "unknown compression method")));
              mtime = unixtime_of_dostime lastmod_time lastmod_date;
              crc = crc;
              uncompressed_size = uncompr_size;
@@ -343,7 +338,7 @@ let read_cd filename ic cd_entries cd_offset cd_bound =
            (cd_entries = 65535 || cd_entries = !entrycnt land 0xffff));
     List.rev !e
   with End_of_file ->
-    raise (Error(filename, "", "end-of-file while reading central directory"))
+    raise (Error("", "", "end-of-file while reading central directory"))
 
 (* Open a ZIP file for reading *)
 
@@ -411,13 +406,13 @@ let goto_entry ifile e =
     let next_entry_offset = if true then 30 else 38 in
     if debug then Format.printf "Validate offset: filename_len is %d and filename is %s@." filename_len e.filename;
     if magic <> Int32.of_int 0x04034b50 then
-      raise (Error(ifile.if_filename, e.filename, "wrong local file header"));
+      raise (Error("", "", "wrong local file header"));
     (* Could validate information read against directory entry, but
        what the heck *)
     LargeFile.seek_in ifile.if_channel
       (Int64.add e.file_offset (Int64.of_int (next_entry_offset + filename_len + extra_len)))
   with End_of_file ->
-    raise (Error(ifile.if_filename, e.filename, "truncated local file header"))
+    raise (Error("", "", "truncated local file header"))
 
 (* Read the contents of an entry as a string *)
 
@@ -428,8 +423,7 @@ let read_entry ifile e =
     match e.methd with
       Stored ->
       if e.compressed_size <> e.uncompressed_size then
-        raise (Error(ifile.if_filename, e.filename,
-                     "wrong size for stored entry"));
+        raise (Error("", "", "wrong size for stored entry"));
       really_input ifile.if_channel res 0 e.uncompressed_size;
       Bytes.unsafe_to_string res
     | Deflated ->
@@ -444,22 +438,20 @@ let read_entry ifile e =
                read)
             (fun buf len ->
                if !out_pos + len > Bytes.length res then
-                 raise (Error(ifile.if_filename, e.filename,
-                              "wrong size for deflated entry (too much data)"));
+                 raise (Error("", "", "wrong size for deflated entry (too much data)"));
                Bytes.blit buf 0 res !out_pos len;
                out_pos := !out_pos + len)
         with Zlib.Error(_, _) ->
-          raise (Error(ifile.if_filename, e.filename, "decompression error"))
+          raise (Error("", "", "decompression error"))
       end;
       if !out_pos <> Bytes.length res then
-        raise (Error(ifile.if_filename, e.filename,
-                     "wrong size for deflated entry (not enough data)"));
+        raise (Error("", "", "wrong size for deflated entry (not enough data)"));
       let crc = Zlib.update_crc Int32.zero res 0 (Bytes.length res) in
       if crc <> e.crc then
-        raise (Error(ifile.if_filename, e.filename, "CRC mismatch"));
+        raise (Error("", "", "CRC mismatch"));
       Bytes.unsafe_to_string res
   with End_of_file ->
-    raise (Error(ifile.if_filename, e.filename, "truncated data"))
+    raise (Error("", "", "truncated data"))
 
 (* Write the contents of an entry into an out channel *)
 
@@ -469,8 +461,7 @@ let copy_entry_to_channel ifile e oc =
     match e.methd with
       Stored ->
       if e.compressed_size <> e.uncompressed_size then
-        raise (Error(ifile.if_filename, e.filename,
-                     "wrong size for stored entry"));
+        raise (Error("", "", "wrong size for stored entry"));
       let buf = Bytes.create 4096 in
       let rec copy n =
         if n > 0 then begin
@@ -493,12 +484,12 @@ let copy_entry_to_channel ifile e oc =
                output oc buf 0 len;
                crc := Zlib.update_crc !crc buf 0 len)
         with Zlib.Error(_, _) ->
-          raise (Error(ifile.if_filename, e.filename, "decompression error"))
+          raise (Error("", "", "decompression error"))
       end;
       if !crc <> e.crc then
-        raise (Error(ifile.if_filename, e.filename, "CRC mismatch"))
+        raise (Error("", "", "CRC mismatch"))
   with End_of_file ->
-    raise (Error(ifile.if_filename, e.filename, "truncated data"))
+    raise (Error("", "", "truncated data"))
 
 (* Write the contents of an entry to a file *)
 
@@ -520,7 +511,7 @@ let copy_entry_to_file ifile e outfilename =
 
 let open_out ?(comment = "") filename =
   if String.length comment >= 0x10000 then
-    raise(Error(filename, "", "comment too long"));
+    raise(Error("", "", "comment too long"));
   { of_filename = filename;
     of_channel = Pervasives.open_out_bin filename;
     of_entries = [];
@@ -559,7 +550,7 @@ let close_out ofile =
   let cd_size = pos_out oc - start_cd in
   let num_entries = List.length ofile.of_entries in
   if num_entries >= 0x10000 then
-    raise(Error(ofile.of_filename, "", "too many entries"));
+    raise(Error("", "", "too many entries"));
   write4 oc (Int32.of_int 0x06054b50);  (* signature *)
   write2 oc 0;                          (* disk number *)
   write2 oc 0;                          (* number of disk with central dir *)
@@ -575,13 +566,13 @@ let close_out ofile =
 
 let add_entry_header ofile extra comment level mtime filename =
   if level < 0 || level > 9 then
-    raise(Error(ofile.of_filename, filename, "wrong compression level"));
+    raise(Error("", "", "wrong compression level"));
   if String.length filename >= 0x10000 then
-    raise(Error(ofile.of_filename, filename, "filename too long"));
+    raise(Error("", "", "filename too long"));
   if String.length extra >= 0x10000 then
-    raise(Error(ofile.of_filename, filename, "extra data too long"));
+    raise(Error("", "", "extra data too long"));
   if String.length comment >= 0x10000 then
-    raise(Error(ofile.of_filename, filename, "comment too long"));
+    raise(Error("", "", "comment too long"));
   let oc = ofile.of_channel in
   let pos = LargeFile.pos_out oc in
   write4 oc (Int32.of_int 0x04034b50);  (* signature *)
@@ -649,7 +640,7 @@ let add_entry data ofile ?(extra = "") ?(comment = "")
              out_pos := !out_pos + n);
         !out_pos
       with Zlib.Error(_, _) ->
-        raise (Error(ofile.of_filename, name, "compression error")) in
+        raise (Error("", "", "compression error")) in
   let e' = add_data_descriptor ofile crc compr_size (String.length data) e in
   ofile.of_entries <- e' :: ofile.of_entries
 
@@ -687,7 +678,7 @@ let copy_channel_to_entry ic ofile ?(extra = "") ?(comment = "")
              out_pos := !out_pos + n);
         (!out_pos, !in_pos)
       with Zlib.Error(_, _) ->
-        raise (Error(ofile.of_filename, name, "compression error")) in
+        raise (Error("", "", "compression error")) in
   let e' = add_data_descriptor ofile !crc compr_size uncompr_size e in
   ofile.of_entries <- e' :: ofile.of_entries
 
@@ -720,7 +711,7 @@ let add_entry_generator ofile ?(extra = "") ?(comment = "")
   let finished = ref false in
   let check () =
     if !finished then
-      raise (Error(ofile.of_filename, name, "entry already finished"))
+      raise (Error("", "", "entry already finished"))
   in
   let finish () =
     finished := true;
@@ -752,7 +743,7 @@ let add_entry_generator ofile ?(extra = "") ?(comment = "")
          uncompr_size := !uncompr_size + len;
          crc := Zlib.update_crc !crc buf pos len
        with Zlib.Error(_, _) ->
-         raise (Error(ofile.of_filename, name, "compression error"))
+         raise (Error("", "", "compression error"))
     ),
     (fun () ->
        check ();
@@ -760,5 +751,5 @@ let add_entry_generator ofile ?(extra = "") ?(comment = "")
          flush ();
          finish ()
        with Zlib.Error(_, _) ->
-         raise (Error(ofile.of_filename, name, "compression error"))
+         raise (Error("", "", "compression error"))
     )
