@@ -11,3 +11,7 @@
 test/minigzip
 test/minizip
 test/testzlib
+
+.merlin
+config/.merlin
+_build
