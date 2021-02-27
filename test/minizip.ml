@@ -13,6 +13,7 @@
 
 (* $Id$ *)
 
+open Camlzip
 open Printf
 
 let list_entry e =

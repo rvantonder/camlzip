@@ -13,6 +13,7 @@
 
 (* $Id$ *)
 
+open Camlzip
 open Printf
 
 let list_entry e =
@@ -31,10 +32,10 @@ let list_entry e =
 let list zipfile =
   let ic = Zip.open_in zipfile in
   if Zip.comment ic <> "" then printf "%s\n" (Zip.comment ic);
-  List.iter list_entry (Zip.entries ic);
+  (*List.iter list_entry (Zip.entries ic);*)
   (* validate reading the file with read_entry works *)
   (*let entry = Zip.find_entry ic "linux-master/virt/kvm/arm/vgic/vgic.c" in*)
-  let entry = Zip.find_entry ic "virt/kvm/arm/vgic/vgic.c" in
+  let entry = Zip.find_entry ic "linux-master/usr/include/.gitignore" in
   let result = Zip.read_entry ic entry in
   Format.printf "Result:@.%s%!" result;
   Zip.close_in ic

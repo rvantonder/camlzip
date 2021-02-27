@@ -13,6 +13,8 @@
 
 (* $Id$ *)
 
+open Camlzip
+
 let buffer = Bytes.create 4096
 
 let _ =

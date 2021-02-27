@@ -1,3 +1,5 @@
+open Camlzip
+
 let compress infile outfile =
   let ic = open_in_bin infile
   and oc = open_out_bin outfile in

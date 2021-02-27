@@ -15,3 +15,6 @@ test/testzlib
 .merlin
 config/.merlin
 _build
+
+*.zip
+*.swp
